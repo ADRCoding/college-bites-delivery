@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { LogOut, Users, Car, Package, User } from "lucide-react";
+import { LogOut, Users, Car, Package, User, UtensilsCrossed } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +15,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-type UserRole = "parent" | "student" | "driver";
+type UserRole = "parent" | "parent_driver" | "student";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -46,7 +45,11 @@ const Dashboard = () => {
           <div className="mb-8 flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-collegeBites-darkBlue">Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome to your {userRole} dashboard</p>
+              <p className="text-gray-600 mt-1">
+                {userRole === "parent" && "Welcome to your Parent dashboard"}
+                {userRole === "parent_driver" && "Welcome to your Parent Driver dashboard"}
+                {userRole === "student" && "Welcome to your Student dashboard"}
+              </p>
             </div>
             <Button 
               variant="outline"
@@ -60,8 +63,8 @@ const Dashboard = () => {
 
           {/* Role-specific content */}
           {userRole === "parent" && <ParentDashboard />}
+          {userRole === "parent_driver" && <ParentDriverDashboard />}
           {userRole === "student" && <StudentDashboard />}
-          {userRole === "driver" && <DriverDashboard />}
         </div>
       </main>
       
@@ -150,6 +153,89 @@ const ParentDashboard = () => {
   );
 };
 
+const ParentDriverDashboard = () => {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Your Campus Visit</CardTitle>
+            <Car className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">June 22</div>
+            <p className="text-xs text-muted-foreground">Your next trip to campus</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Food Packages</CardTitle>
+            <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">3</div>
+            <p className="text-xs text-muted-foreground">Packages to deliver on your next trip</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Help Provided</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">8</div>
+            <p className="text-xs text-muted-foreground">Families you've helped</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Packages to Deliver on Your Next Trip</h2>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="divide-y">
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium">Sandra's Homemade Lasagna</p>
+                <p className="text-sm text-gray-500">For: Michael Johnson (UCLA Dorms)</p>
+                <p className="text-sm text-gray-500">Pickup: 123 Parent St, Los Angeles</p>
+              </div>
+              <Button size="sm" variant="outline">
+                Details
+              </Button>
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium">Batch of Cookies and Study Snacks</p>
+                <p className="text-sm text-gray-500">For: Emma Williams (USC Housing)</p>
+                <p className="text-sm text-gray-500">Pickup: 456 Family Ave, Los Angeles</p>
+              </div>
+              <Button size="sm" variant="outline">
+                Details
+              </Button>
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium">Homemade Curry and Rice</p>
+                <p className="text-sm text-gray-500">For: David Lee (UCLA Apartments)</p>
+                <p className="text-sm text-gray-500">Pickup: 789 Parent Blvd, Los Angeles</p>
+              </div>
+              <Button size="sm" variant="outline">
+                Details
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-8">
+        <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
+          Update Campus Visit Schedule
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const StudentDashboard = () => {
   return (
     <div className="space-y-6">
@@ -214,100 +300,6 @@ const StudentDashboard = () => {
             </Button>
           </CardContent>
         </Card>
-      </div>
-    </div>
-  );
-};
-
-const DriverDashboard = () => {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Deliveries</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">Deliveries you can claim</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Your Deliveries</CardTitle>
-            <Car className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-muted-foreground">Currently assigned to you</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Earnings</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$75</div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Available Delivery Opportunities</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="divide-y">
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">UCLA to USC</p>
-                <p className="text-sm text-gray-500">3 packages, 15 miles</p>
-                <p className="text-sm text-gray-500">June 18, 2023</p>
-              </div>
-              <Button size="sm" className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-                Claim
-              </Button>
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Berkeley to Stanford</p>
-                <p className="text-sm text-gray-500">2 packages, 35 miles</p>
-                <p className="text-sm text-gray-500">June 20, 2023</p>
-              </div>
-              <Button size="sm" className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-                Claim
-              </Button>
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">San Diego State to UCSD</p>
-                <p className="text-sm text-gray-500">1 package, 10 miles</p>
-                <p className="text-sm text-gray-500">June 22, 2023</p>
-              </div>
-              <Button size="sm" className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-                Claim
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Your Assigned Deliveries</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-4 flex items-center justify-between">
-            <div>
-              <p className="font-medium">Homemade Pasta Package</p>
-              <p className="text-sm text-gray-500">From: 123 Parent St, Los Angeles</p>
-              <p className="text-sm text-gray-500">To: UCLA Dorms, Building C</p>
-              <p className="text-sm text-gray-500">Due: June 19, 2023</p>
-            </div>
-            <Button size="sm" variant="outline">
-              View Details
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

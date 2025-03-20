@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -17,13 +16,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -32,7 +24,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
-  userType: z.enum(["parent", "student", "driver"], { 
+  userType: z.enum(["parent", "parent_driver", "student"], { 
     required_error: "Please select your account type" 
   }),
 });
@@ -56,10 +48,8 @@ const Register = () => {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      // In a real app, this would connect to a registration API
       console.log("Registration with:", data);
       
-      // Simulate successful registration
       setTimeout(() => {
         toast.success(`Account created successfully as a ${data.userType}!`);
         navigate("/dashboard");
@@ -160,7 +150,15 @@ const Register = () => {
                               <RadioGroupItem value="parent" />
                             </FormControl>
                             <FormLabel className="font-normal cursor-pointer">
-                              Parent - Send homemade food to my child
+                              Parent - Send homemade food with other visiting parents
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="parent_driver" />
+                            </FormControl>
+                            <FormLabel className="font-normal cursor-pointer">
+                              Parent Driver - Visiting campus and can deliver food
                             </FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-3 space-y-0">
@@ -168,15 +166,7 @@ const Register = () => {
                               <RadioGroupItem value="student" />
                             </FormControl>
                             <FormLabel className="font-normal cursor-pointer">
-                              Student - Receive homemade food
-                            </FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="driver" />
-                            </FormControl>
-                            <FormLabel className="font-normal cursor-pointer">
-                              Driver - Help deliver food to students
+                              Student - Receive homemade food on campus
                             </FormLabel>
                           </FormItem>
                         </RadioGroup>
