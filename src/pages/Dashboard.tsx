@@ -36,6 +36,10 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  const goToPortal = () => {
+    navigate("/portal");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
@@ -62,9 +66,9 @@ const Dashboard = () => {
           </div>
 
           {/* Role-specific content */}
-          {userRole === "parent" && <ParentDashboard />}
-          {userRole === "parent_driver" && <ParentDriverDashboard />}
-          {userRole === "student" && <StudentDashboard />}
+          {userRole === "parent" && <ParentDashboard goToPortal={goToPortal} />}
+          {userRole === "parent_driver" && <ParentDriverDashboard goToPortal={goToPortal} />}
+          {userRole === "student" && <StudentDashboard goToPortal={goToPortal} />}
         </div>
       </main>
       
@@ -73,7 +77,7 @@ const Dashboard = () => {
   );
 };
 
-const ParentDashboard = () => {
+const ParentDashboard = ({ goToPortal }: { goToPortal: () => void }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -144,16 +148,25 @@ const ParentDashboard = () => {
         </div>
       </div>
       
-      <div className="mt-8">
+      <div className="mt-8 flex gap-4">
         <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
           Schedule New Delivery
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={goToPortal}
+        >
+          <Car className="h-4 w-4" />
+          View Available Drives
         </Button>
       </div>
     </div>
   );
 };
 
-const ParentDriverDashboard = () => {
+const ParentDriverDashboard = ({ goToPortal }: { goToPortal: () => void }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -227,16 +240,25 @@ const ParentDriverDashboard = () => {
         </div>
       </div>
       
-      <div className="mt-8">
+      <div className="mt-8 flex gap-4">
         <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
           Update Campus Visit Schedule
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          onClick={goToPortal}
+        >
+          <Car className="h-4 w-4" />
+          Manage Your Drives
         </Button>
       </div>
     </div>
   );
 };
 
-const StudentDashboard = () => {
+const StudentDashboard = ({ goToPortal }: { goToPortal: () => void }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -295,9 +317,20 @@ const StudentDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <p className="mb-2">Let your family know what you're craving:</p>
-            <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-              Update Food Preferences
-            </Button>
+            <div className="flex gap-4">
+              <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
+                Update Food Preferences
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={goToPortal}
+              >
+                <Car className="h-4 w-4" />
+                View Upcoming Deliveries
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
