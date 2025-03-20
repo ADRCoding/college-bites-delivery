@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, LogIn, UserPlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   
   useEffect(() => {
     const handleScroll = () => {
@@ -28,6 +29,8 @@ const Header = () => {
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];
+
+  const isLoggedIn = localStorage.getItem('userRole') !== null;
   
   return (
     <header className={cn(
@@ -60,9 +63,33 @@ const Header = () => {
             </Link>
           ))}
           
-          <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue text-white rounded-full transition-all duration-300 shadow-subtle hover:shadow-lg">
-            Get Started
-          </Button>
+          {isLoggedIn ? (
+            <Button 
+              className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue text-white rounded-full transition-all duration-300 shadow-subtle hover:shadow-lg"
+              onClick={() => navigate('/dashboard')}
+            >
+              Dashboard
+            </Button>
+          ) : (
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant="outline" 
+                className="border-collegeBites-blue text-collegeBites-blue hover:bg-collegeBites-blue/10 rounded-full transition-all duration-300 flex items-center gap-1.5"
+                onClick={() => navigate('/login')}
+              >
+                <LogIn size={16} />
+                <span>Sign In</span>
+              </Button>
+              
+              <Button 
+                className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue text-white rounded-full transition-all duration-300 shadow-subtle hover:shadow-lg flex items-center gap-1.5"
+                onClick={() => navigate('/register')}
+              >
+                <UserPlus size={16} />
+                <span>Sign Up</span>
+              </Button>
+            </div>
+          )}
         </nav>
         
         {/* Mobile Menu Button */}
@@ -94,9 +121,33 @@ const Header = () => {
             </Link>
           ))}
           
-          <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue text-white rounded-full transition-all duration-300 mt-4 w-full">
-            Get Started
-          </Button>
+          {isLoggedIn ? (
+            <Button 
+              className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue text-white rounded-full transition-all duration-300 mt-4 w-full"
+              onClick={() => navigate('/dashboard')}
+            >
+              Dashboard
+            </Button>
+          ) : (
+            <div className="flex flex-col w-full space-y-3 mt-4">
+              <Button 
+                variant="outline" 
+                className="border-collegeBites-blue text-collegeBites-blue hover:bg-collegeBites-blue/10 rounded-full transition-all duration-300 w-full flex items-center justify-center gap-1.5"
+                onClick={() => navigate('/login')}
+              >
+                <LogIn size={16} />
+                <span>Sign In</span>
+              </Button>
+              
+              <Button 
+                className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue text-white rounded-full transition-all duration-300 w-full flex items-center justify-center gap-1.5"
+                onClick={() => navigate('/register')}
+              >
+                <UserPlus size={16} />
+                <span>Sign Up</span>
+              </Button>
+            </div>
+          )}
         </nav>
       </div>
     </header>
