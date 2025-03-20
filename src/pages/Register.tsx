@@ -1,10 +1,9 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
-import { UserPlus, Check } from "lucide-react";
+import { UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/context/AuthContext";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -32,8 +32,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signUp, isLoading } = useAuth();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -46,19 +45,7 @@ const Register = () => {
   });
 
   const onSubmit = async (data: FormValues) => {
-    setIsLoading(true);
-    try {
-      console.log("Registration with:", data);
-      
-      setTimeout(() => {
-        toast.success(`Account created successfully as a ${data.userType}!`);
-        navigate("/dashboard");
-        setIsLoading(false);
-      }, 1500);
-    } catch (error) {
-      toast.error("Registration failed. Please try again.");
-      setIsLoading(false);
-    }
+    await signUp(data.email, data.password, data.name, data.userType);
   };
 
   return (

@@ -1,11 +1,10 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
-import { LogIn, Key } from "lucide-react";
+import { LogIn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/context/AuthContext";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -28,8 +28,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, isLoading } = useAuth();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -40,21 +39,7 @@ const Login = () => {
   });
 
   const onSubmit = async (data: FormValues) => {
-    setIsLoading(true);
-    try {
-      // In a real app, this would connect to an authentication API
-      console.log("Login attempt with:", data);
-      
-      // Simulate successful login
-      setTimeout(() => {
-        toast.success("Login successful! Welcome back.");
-        navigate("/dashboard");
-        setIsLoading(false);
-      }, 1500);
-    } catch (error) {
-      toast.error("Login failed. Please check your credentials.");
-      setIsLoading(false);
-    }
+    await signIn(data.email, data.password);
   };
 
   return (
