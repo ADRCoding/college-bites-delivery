@@ -34,7 +34,7 @@ const Portal = () => {
       // Get upcoming schedules
       const { data: upcoming, error: upcomingError } = await supabase
         .from('driver_schedules')
-        .select('*, driver:driver_id(email)')
+        .select('*')
         .gte('departure_date', today.split('T')[0])
         .order('departure_date', { ascending: true });
       
@@ -43,7 +43,7 @@ const Portal = () => {
       // Get past schedules
       const { data: past, error: pastError } = await supabase
         .from('driver_schedules')
-        .select('*, driver:driver_id(email)')
+        .select('*')
         .lt('departure_date', today.split('T')[0])
         .order('departure_date', { ascending: false });
       
@@ -52,7 +52,7 @@ const Portal = () => {
       // Format the data for display
       const formattedUpcoming = upcoming.map(drive => ({
         id: drive.id,
-        driver: drive.driver?.email ? drive.driver.email.split('@')[0] : 'Unknown',
+        driver: drive.driver_id ? drive.driver_id.substring(0, 8) : 'Unknown',
         driverId: drive.driver_id,
         from: drive.from_location,
         to: drive.to_location,
@@ -64,7 +64,7 @@ const Portal = () => {
       
       const formattedPast = past.map(drive => ({
         id: drive.id,
-        driver: drive.driver?.email ? drive.driver.email.split('@')[0] : 'Unknown',
+        driver: drive.driver_id ? drive.driver_id.substring(0, 8) : 'Unknown',
         driverId: drive.driver_id,
         from: drive.from_location,
         to: drive.to_location,
@@ -88,9 +88,15 @@ const Portal = () => {
   return (
     <div>
       <Header />
-      <main>
-        {/* Portal content goes here */}
-        <h1>Portal Page</h1>
+      <main className="container mx-auto py-8 px-4">
+        <h1 className="text-2xl font-bold mb-4">Driver Portal</h1>
+        <p className="mb-8">Schedule and manage your drives</p>
+        
+        {/* Portal content placeholder */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Coming Soon</h2>
+          <p>The driver portal is under development. Check back soon for updates!</p>
+        </div>
       </main>
       <Footer />
     </div>
