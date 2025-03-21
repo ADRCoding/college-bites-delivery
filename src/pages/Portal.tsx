@@ -34,7 +34,7 @@ const Portal = () => {
       // Get upcoming schedules
       const { data: upcoming, error: upcomingError } = await supabase
         .from('driver_schedules')
-        .select('*, users:driver_id(email)')
+        .select('*, driver:driver_id(email)')
         .gte('departure_date', today.split('T')[0])
         .order('departure_date', { ascending: true });
       
@@ -43,7 +43,7 @@ const Portal = () => {
       // Get past schedules
       const { data: past, error: pastError } = await supabase
         .from('driver_schedules')
-        .select('*, users:driver_id(email)')
+        .select('*, driver:driver_id(email)')
         .lt('departure_date', today.split('T')[0])
         .order('departure_date', { ascending: false });
       
@@ -52,7 +52,7 @@ const Portal = () => {
       // Format the data for display
       const formattedUpcoming = upcoming.map(drive => ({
         id: drive.id,
-        driver: drive.users?.email ? drive.users.email.split('@')[0] : 'Unknown',
+        driver: drive.driver?.email ? drive.driver.email.split('@')[0] : 'Unknown',
         driverId: drive.driver_id,
         from: drive.from_location,
         to: drive.to_location,
@@ -64,7 +64,7 @@ const Portal = () => {
       
       const formattedPast = past.map(drive => ({
         id: drive.id,
-        driver: drive.users?.email ? drive.users.email.split('@')[0] : 'Unknown',
+        driver: drive.driver?.email ? drive.driver.email.split('@')[0] : 'Unknown',
         driverId: drive.driver_id,
         from: drive.from_location,
         to: drive.to_location,
