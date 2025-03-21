@@ -9,7 +9,86 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      driver_schedules: {
+        Row: {
+          available_capacity: number
+          capacity: number
+          created_at: string
+          departure_date: string
+          departure_time: string
+          driver_id: string
+          from_location: string
+          id: string
+          to_location: string
+        }
+        Insert: {
+          available_capacity?: number
+          capacity?: number
+          created_at?: string
+          departure_date: string
+          departure_time: string
+          driver_id: string
+          from_location: string
+          id?: string
+          to_location: string
+        }
+        Update: {
+          available_capacity?: number
+          capacity?: number
+          created_at?: string
+          departure_date?: string
+          departure_time?: string
+          driver_id?: string
+          from_location?: string
+          id?: string
+          to_location?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          created_at: string
+          customer_id: string
+          description: string | null
+          id: string
+          payment_id: string | null
+          quantity: number
+          schedule_id: string
+          special_instructions: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          description?: string | null
+          id?: string
+          payment_id?: string | null
+          quantity: number
+          schedule_id: string
+          special_instructions?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          description?: string | null
+          id?: string
+          payment_id?: string | null
+          quantity?: number
+          schedule_id?: string
+          special_instructions?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "driver_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
