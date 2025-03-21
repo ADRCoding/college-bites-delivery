@@ -45,6 +45,41 @@ export type Database = {
         }
         Relationships: []
       }
+      location_updates: {
+        Row: {
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          note: string | null
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          note?: string | null
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          note?: string | null
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_updates_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           created_at: string
