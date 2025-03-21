@@ -5,10 +5,13 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type UserType = "parent" | "student" | "parent_driver" | "driver";
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  userType: UserType | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, userType: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -20,6 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userType, setUserType] = useState<UserType | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,9 +38,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userMeta = session.user.user_metadata;
           if (userMeta && userMeta.userType) {
             localStorage.setItem('userRole', userMeta.userType);
+            setUserType(userMeta.userType as UserType);
           }
         } else {
           localStorage.removeItem('userRole');
+          setUserType(null);
         }
       }
     );
@@ -52,6 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const userMeta = session.user.user_metadata;
         if (userMeta && userMeta.userType) {
           localStorage.setItem('userRole', userMeta.userType);
+          setUserType(userMeta.userType as UserType);
         }
       }
     });
@@ -70,7 +77,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       
       toast.success("Login successful! Welcome back.");
-      navigate("/dashboard");
+      
+      // Redirect based on user type
+      const userType = data.user?.user_metadata?.userType;
+      if (userType === 'driver') {
+        navigate("/driver-dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast.error(`Login failed: ${error.message}`);
       console.error("Login error:", error);
@@ -96,7 +110,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       
       toast.success(`Account created successfully as a ${userType}!`);
-      navigate("/dashboard");
+      
+      // Redirect based on user type
+      if (userType === 'driver') {
+        navigate("/driver-dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast.error(`Registration failed: ${error.message}`);
       console.error("Registration error:", error);
@@ -112,6 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       
       localStorage.removeItem('userRole');
+      setUserType(null);
       toast.success("You have been logged out");
       navigate("/");
     } catch (error: any) {
@@ -128,6 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         session,
         isLoading,
+        userType,
         signIn,
         signUp,
         signOut,

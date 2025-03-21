@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { LogOut, Users, Car, Package, User, UtensilsCrossed } from "lucide-react";
+import { LogOut, Users, Car, Package, User, UtensilsCrossed, Map } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,32 +13,102 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-
-type UserRole = "parent" | "parent_driver" | "student";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState<UserRole>("parent");
+  const { user, signOut, userType } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [upcomingDeliveries, setUpcomingDeliveries] = useState(0);
+  const [completedDeliveries, setCompletedDeliveries] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  // Simulate fetching user data from a backend
+  // Check if user is a customer or parent
   useEffect(() => {
-    // In a real app, you would fetch actual user data
-    // For demo purposes, we'll simulate a parent user
-    const storedRole = localStorage.getItem("userRole") as UserRole | null;
-    setUserRole(storedRole || "parent");
-  }, []);
+    if (userType === 'driver') {
+      navigate('/driver-dashboard');
+    }
+  }, [userType, navigate]);
 
-  const handleLogout = () => {
-    // Clear any stored tokens or user data
-    localStorage.removeItem("userRole");
-    toast.success("Logged out successfully");
-    navigate("/");
+  // Fetch orders for this customer
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    fetchCustomerOrders();
+  }, [user, navigate]);
+
+  const fetchCustomerOrders = async () => {
+    try {
+      setLoading(true);
+      
+      // Get customer orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          driver_schedules(*)
+        `)
+        .eq('customer_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (ordersError) throw ordersError;
+      
+      // Process orders
+      const pending = ordersData?.filter(order => 
+        order.status === 'pending' || order.status === 'in_transit'
+      ).length || 0;
+      
+      const completed = ordersData?.filter(order => 
+        order.status === 'completed'
+      ).length || 0;
+      
+      setOrders(ordersData || []);
+      setUpcomingDeliveries(pending);
+      setCompletedDeliveries(completed);
+    } catch (error) {
+      console.error("Error fetching customer orders:", error);
+      toast.error("Failed to load your orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
   };
 
   const goToPortal = () => {
     navigate("/portal");
+  };
+
+  // Format time from database format
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    const [hours, minutes] = timeString.split(':');
+    const time = new Date();
+    time.setHours(parseInt(hours, 10));
+    time.setMinutes(parseInt(minutes, 10));
+    return time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -48,11 +119,9 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-collegeBites-darkBlue">Dashboard</h1>
+              <h1 className="text-3xl font-bold text-collegeBites-darkBlue">Customer Dashboard</h1>
               <p className="text-gray-600 mt-1">
-                {userRole === "parent" && "Welcome to your Parent dashboard"}
-                {userRole === "parent_driver" && "Welcome to your Parent Driver dashboard"}
-                {userRole === "student" && "Welcome to your Student dashboard"}
+                Welcome to your food delivery dashboard
               </p>
             </div>
             <Button 
@@ -65,275 +134,178 @@ const Dashboard = () => {
             </Button>
           </div>
 
-          {/* Role-specific content */}
-          {userRole === "parent" && <ParentDashboard goToPortal={goToPortal} />}
-          {userRole === "parent_driver" && <ParentDriverDashboard goToPortal={goToPortal} />}
-          {userRole === "student" && <StudentDashboard goToPortal={goToPortal} />}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Deliveries</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{upcomingDeliveries}</div>
+                <p className="text-xs text-muted-foreground">{upcomingDeliveries} deliveries in process</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Completed Deliveries</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{completedDeliveries}</div>
+                <p className="text-xs text-muted-foreground">Successfully delivered packages</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Available Drivers</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Browse</div>
+                <p className="text-xs text-muted-foreground">See available delivery options</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Tabs defaultValue="orders" className="mt-8 space-y-6">
+            <TabsList>
+              <TabsTrigger value="orders">Your Orders</TabsTrigger>
+              <TabsTrigger value="scheduled">Delivery Calendar</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="orders" className="space-y-4">
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                {loading ? (
+                  <div className="p-8 text-center">
+                    <p>Loading your orders...</p>
+                  </div>
+                ) : orders.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order Details</TableHead>
+                        <TableHead>Route</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell>
+                            <div className="font-medium">{order.description || "Food Package"}</div>
+                            <div className="text-sm text-gray-500">Quantity: {order.quantity}</div>
+                            {order.special_instructions && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Note: {order.special_instructions}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {order.driver_schedules?.from_location} to {order.driver_schedules?.to_location}
+                          </TableCell>
+                          <TableCell>
+                            {order.driver_schedules?.departure_date ? new Date(order.driver_schedules.departure_date).toLocaleDateString() : "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              order.status === 'in_transit' ? 'bg-blue-100 text-blue-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {order.status === 'pending' ? 'Pending' : 
+                               order.status === 'in_transit' ? 'In Transit' : 
+                               'Completed'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link to={`/track/${order.id}`}>
+                              <Button 
+                                size="sm" 
+                                className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue flex items-center gap-1"
+                              >
+                                <Map className="h-4 w-4" />
+                                Track
+                              </Button>
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="p-8 text-center">
+                    <Package className="h-12 w-12 mx-auto text-gray-400" />
+                    <h3 className="mt-2 text-lg font-medium text-gray-900">No orders yet</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      You haven't placed any food delivery orders yet.
+                    </p>
+                    <div className="mt-6">
+                      <Button 
+                        onClick={() => navigate('/portal')}
+                        className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
+                      >
+                        Browse Available Deliveries
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="scheduled" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Delivery Calendar</CardTitle>
+                  <CardDescription>View your upcoming food deliveries</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 text-center">
+                    <Car className="h-12 w-12 mx-auto text-gray-400" />
+                    <h3 className="mt-2 text-lg font-medium text-gray-900">Schedule a Delivery</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Browse available drivers and schedule a delivery for your homemade food.
+                    </p>
+                    <Button 
+                      className="mt-4 bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
+                      onClick={goToPortal}
+                    >
+                      Find Available Drivers
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>My Food Preferences</CardTitle>
+                  <CardDescription>Update your food preferences for future deliveries</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <UtensilsCrossed className="h-5 w-5 text-collegeBites-blue mb-2" />
+                      <h4 className="font-medium">Dietary Restrictions</h4>
+                      <p className="text-sm text-gray-600 mt-1">Update any dietary restrictions or allergies</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <Package className="h-5 w-5 text-collegeBites-blue mb-2" />
+                      <h4 className="font-medium">Packaging Preferences</h4>
+                      <p className="text-sm text-gray-600 mt-1">Set your preferences for food packaging</p>
+                    </div>
+                  </div>
+                  <Button className="w-full mt-4" variant="outline">
+                    Update Preferences
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       
       <Footer />
-    </div>
-  );
-};
-
-const ParentDashboard = ({ goToPortal }: { goToPortal: () => void }) => {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Deliveries</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">2 deliveries in process</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Deliveries</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+3 from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Connected Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-muted-foreground">Your connected children</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Your Recent Deliveries</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="divide-y">
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Homemade Pasta and Cookies</p>
-                <p className="text-sm text-gray-500">Delivered on June 10, 2023</p>
-              </div>
-              <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                Delivered
-              </span>
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Weekend Meal Prep</p>
-                <p className="text-sm text-gray-500">In transit - Expected June 18, 2023</p>
-              </div>
-              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                In Transit
-              </span>
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Birthday Cake</p>
-                <p className="text-sm text-gray-500">Scheduled for June 24, 2023</p>
-              </div>
-              <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
-                Scheduled
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-8 flex gap-4">
-        <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-          Schedule New Delivery
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={goToPortal}
-        >
-          <Car className="h-4 w-4" />
-          View Available Drives
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const ParentDriverDashboard = ({ goToPortal }: { goToPortal: () => void }) => {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Your Campus Visit</CardTitle>
-            <Car className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">June 22</div>
-            <p className="text-xs text-muted-foreground">Your next trip to campus</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Food Packages</CardTitle>
-            <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">Packages to deliver on your next trip</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Help Provided</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">Families you've helped</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Packages to Deliver on Your Next Trip</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="divide-y">
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Sandra's Homemade Lasagna</p>
-                <p className="text-sm text-gray-500">For: Michael Johnson (UCLA Dorms)</p>
-                <p className="text-sm text-gray-500">Pickup: 123 Parent St, Los Angeles</p>
-              </div>
-              <Button size="sm" variant="outline">
-                Details
-              </Button>
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Batch of Cookies and Study Snacks</p>
-                <p className="text-sm text-gray-500">For: Emma Williams (USC Housing)</p>
-                <p className="text-sm text-gray-500">Pickup: 456 Family Ave, Los Angeles</p>
-              </div>
-              <Button size="sm" variant="outline">
-                Details
-              </Button>
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Homemade Curry and Rice</p>
-                <p className="text-sm text-gray-500">For: David Lee (UCLA Apartments)</p>
-                <p className="text-sm text-gray-500">Pickup: 789 Parent Blvd, Los Angeles</p>
-              </div>
-              <Button size="sm" variant="outline">
-                Details
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-8 flex gap-4">
-        <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-          Update Campus Visit Schedule
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2"
-          onClick={goToPortal}
-        >
-          <Car className="h-4 w-4" />
-          Manage Your Drives
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const StudentDashboard = ({ goToPortal }: { goToPortal: () => void }) => {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Deliveries</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-muted-foreground">Food coming your way</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Received Packages</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">+2 from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Connected Family</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-muted-foreground">Family members connected</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Your Upcoming Deliveries</h2>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="divide-y">
-            <div className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Weekend Meal Prep</p>
-                <p className="text-sm text-gray-500">Expected June 18, 2023</p>
-                <p className="text-sm text-gray-500">From: Mom</p>
-              </div>
-              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                In Transit
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">Food Preferences</h2>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="mb-2">Let your family know what you're craving:</p>
-            <div className="flex gap-4">
-              <Button className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue">
-                Update Food Preferences
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={goToPortal}
-              >
-                <Car className="h-4 w-4" />
-                View Upcoming Deliveries
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 };
