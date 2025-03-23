@@ -129,35 +129,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signOut();
+      
       if (error) throw error;
       
-      localStorage.removeItem('userRole');
-      setUserType(null);
-      toast.success("You have been logged out");
+      toast.success("You have been logged out.");
       navigate("/");
     } catch (error: any) {
-      toast.error(`Sign out failed: ${error.message}`);
-      console.error("Sign out error:", error);
+      toast.error(`Logout failed: ${error.message}`);
+      console.error("Logout error:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        isLoading,
-        userType,
-        signIn,
-        signUp,
-        signOut,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    session,
+    isLoading,
+    userType,
+    signIn,
+    signUp,
+    signOut,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

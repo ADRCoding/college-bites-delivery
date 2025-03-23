@@ -1,146 +1,81 @@
 
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { StarIcon } from "lucide-react";
 
 const testimonials = [
   {
-    id: 1,
-    name: "Jennifer P.",
+    content:
+      "CollegeBites has been a game-changer for our family. My son gets to enjoy my homemade lasagna even while he's away at college, and I have peace of mind knowing he's eating well.",
+    author: "Sarah Johnson",
     role: "Parent",
-    image: null,
-    text: "College Bites has been a game-changer for our family. I can send my son his favorite lasagna without expensive shipping, and I know it arrives fresh because a fellow parent delivers it on their way to visit their own child!",
+    avatar: "https://randomuser.me/api/portraits/women/12.jpg",
     rating: 5,
   },
   {
-    id: 2,
-    name: "Michael T.",
+    content:
+      "As a college student, getting home-cooked meals from my parents through CollegeBites has made such a difference. It's like having a piece of home in my dorm room.",
+    author: "Michael Chen",
     role: "Student",
-    image: null,
-    text: "Nothing beats mom's home cooking. With College Bites, I get to enjoy dishes from home that I miss so much - it's been great for morale during exam weeks!",
+    avatar: "https://randomuser.me/api/portraits/men/22.jpg",
     rating: 5,
   },
   {
-    id: 3,
-    name: "Sarah K.",
+    content:
+      "I drive between Boston and New York regularly for work. CollegeBites lets me make some extra money by delivering food packages along my route. It's been a win-win!",
+    author: "David Rodriguez",
     role: "Driver",
-    image: null,
-    text: "I visit my daughter every other weekend, and I love being able to help other families by delivering food along the way. It's a wonderful way to build community while helping students eat well.",
-    rating: 5,
-  },
-  {
-    id: 4,
-    name: "David L.",
-    role: "Parent",
-    image: null,
-    text: "My daughter has dietary restrictions and I worried about her eating well at college. Now I can prepare her special meals and send them through the College Bites network. It's been a huge relief!",
-    rating: 5,
+    avatar: "https://randomuser.me/api/portraits/men/42.jpg",
+    rating: 4,
   },
 ];
 
 const Testimonials = () => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  
-  const nextTestimonial = () => {
-    setActiveIndex((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1));
-  };
-  
-  const prevTestimonial = () => {
-    setActiveIndex((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1));
-  };
-  
   return (
-    <section className="py-24 px-6 md:px-10">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16 animate-fade-up">
-          <div className="inline-block bg-collegeBites-lightBlue text-collegeBites-blue rounded-full px-4 py-1 text-sm font-medium mb-6">
-            Testimonials
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-collegeBites-text">
+    <section className="py-16 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
             What Our Community Says
           </h2>
-          <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-            Discover how College Bites is making a difference for parents, students, and community drivers.
+          <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
+            Join thousands of satisfied parents, students, and drivers using CollegeBites
           </p>
         </div>
-        
-        <div className="relative px-4 sm:px-6 md:px-10">
-          {/* Desktop Testimonials */}
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div 
-                key={testimonial.id}
-                className={cn(
-                  "glass rounded-2xl p-6 transition-all duration-500 hover:shadow-lg animate-fade-up flex flex-col h-full",
-                  `animate-delay-${index % 3 + 1}00`
-                )}
-              >
-                <div className="flex items-start mb-4">
-                  <div className="w-10 h-10 rounded-full bg-collegeBites-blue/20 flex items-center justify-center text-collegeBites-blue font-medium">
-                    {testimonial.name.charAt(0)}
-                  </div>
-                  <div className="ml-3">
-                    <h4 className="font-semibold text-collegeBites-text">{testimonial.name}</h4>
-                    <p className="text-sm text-gray-500">{testimonial.role}</p>
-                  </div>
-                </div>
-                <div className="flex mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      className={cn(
-                        "h-4 w-4",
-                        i < testimonial.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                      )}
-                    />
-                  ))}
-                </div>
-                <p className="text-gray-600 flex-grow">{testimonial.text}</p>
-              </div>
-            ))}
-          </div>
-          
-          {/* Mobile Testimonials */}
-          <div className="block md:hidden">
-            <div className="glass rounded-2xl p-6 shadow-subtle animate-fade-up">
-              <div className="flex items-start mb-4">
-                <div className="w-10 h-10 rounded-full bg-collegeBites-blue/20 flex items-center justify-center text-collegeBites-blue font-medium">
-                  {testimonials[activeIndex].name.charAt(0)}
-                </div>
-                <div className="ml-3">
-                  <h4 className="font-semibold text-collegeBites-text">{testimonials[activeIndex].name}</h4>
-                  <p className="text-sm text-gray-500">{testimonials[activeIndex].role}</p>
-                </div>
-              </div>
-              <div className="flex mb-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {testimonials.map((testimonial, index) => (
+            <div
+              key={index}
+              className="bg-collegeBites-lightBlue rounded-lg p-6 shadow-sm"
+            >
+              <div className="flex space-x-1 mb-4">
                 {[...Array(5)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className={cn(
-                      "h-4 w-4",
-                      i < testimonials[activeIndex].rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                    )}
+                  <StarIcon
+                    key={i}
+                    size={18}
+                    className={`${
+                      i < testimonial.rating
+                        ? "text-yellow-400 fill-yellow-400"
+                        : "text-gray-300"
+                    }`}
                   />
                 ))}
               </div>
-              <p className="text-gray-600">{testimonials[activeIndex].text}</p>
+              <p className="text-gray-700 mb-6">"{testimonial.content}"</p>
+              <div className="flex items-center">
+                <img
+                  className="h-10 w-10 rounded-full mr-3"
+                  src={testimonial.avatar}
+                  alt={testimonial.author}
+                />
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {testimonial.author}
+                  </p>
+                  <p className="text-sm text-gray-600">{testimonial.role}</p>
+                </div>
+              </div>
             </div>
-            
-            <div className="flex justify-center mt-6 gap-4">
-              <button 
-                onClick={prevTestimonial}
-                className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 transition-all hover:bg-collegeBites-lightBlue hover:text-collegeBites-blue shadow-subtle"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={nextTestimonial}
-                className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 transition-all hover:bg-collegeBites-lightBlue hover:text-collegeBites-blue shadow-subtle"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>

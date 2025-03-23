@@ -1,16 +1,25 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { 
-  Truck, 
-  Calendar, 
-  Clock, 
-  Package, 
-  Navigation, 
-  ArrowLeft,
-  PlusCircle,
-  MinusCircle
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Car,
+  CalendarDays,
+  Clock,
+  MapPin,
+  ArrowRightLeft,
+  Package,
+  Minus,
+  Plus,
+  ShoppingCart,
 } from "lucide-react";
+
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,47 +38,43 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useQuery } from "@tanstack/react-query";
-
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { formatTime } from "@/pages/DriverDashboard/utils/formatTime";
+import { formatTime } from "@/utils/formatTime";
 import Checkout from "@/components/Checkout";
 
 const formSchema = z.object({
   description: z.string().min(2, {
     message: "Description must be at least 2 characters.",
   }),
-  quantity: z.number().min(1, {
-    message: "You must order at least 1 item.",
-  }).max(10, {
-    message: "Maximum 10 items per order.",
-  }),
   special_instructions: z.string().optional(),
+  schedule_id: z.string({
+    required_error: "Please select a delivery schedule.",
+  }),
 });
 
 const Portal = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: "Food Package",
-      quantity: 1,
+      description: "",
       special_instructions: "",
+      schedule_id: "",
     },
   });
 
@@ -84,7 +89,7 @@ const Portal = () => {
       const { data: scheduleData, error } = await supabase
         .from('driver_schedules')
         .select('*')
-        .gt('available_capacity', 0)
+        .gte('departure_date', new Date().toISOString().split('T')[0])
         .order('departure_date', { ascending: true });
       
       if (error) throw error;
@@ -101,48 +106,46 @@ const Portal = () => {
           
           return {
             ...schedule,
-            driver: { email: driverEmail }
+            driver_email: driverEmail,
           };
         })
       );
       
-      return schedulesWithDrivers || [];
-    }
+      return schedulesWithDrivers;
+    },
   });
 
-  const handleScheduleSelect = (schedule) => {
-    setSelectedSchedule(schedule);
-    form.setValue("quantity", 1);
-    setQuantity(1);
-  };
-
-  const handleQuantityChange = (newQuantity) => {
-    if (newQuantity < 1) newQuantity = 1;
-    if (selectedSchedule && newQuantity > selectedSchedule.available_capacity) {
-      newQuantity = selectedSchedule.available_capacity;
+  const handleScheduleChange = (scheduleId: string) => {
+    const schedule = schedules?.find(s => s.id === scheduleId);
+    if (schedule) {
+      setSelectedSchedule(schedule);
+      // Reset quantity when schedule changes
+      setQuantity(1);
     }
-    if (newQuantity > 10) newQuantity = 10;
-    
-    setQuantity(newQuantity);
-    form.setValue("quantity", newQuantity);
   };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const decreaseQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+    }
+  };
+
+  const increaseQuantity = () => {
+    if (selectedSchedule && quantity < selectedSchedule.available_capacity) {
+      setQuantity(quantity + 1);
+    } else {
+      toast.error("Cannot exceed available capacity");
+    }
+  };
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!selectedSchedule) {
-      toast({
-        title: "Error",
-        description: "Please select a delivery schedule",
-        variant: "destructive",
-      });
+      toast.error("Please select a delivery schedule");
       return;
     }
-
-    if (values.quantity > selectedSchedule.available_capacity) {
-      toast({
-        title: "Error",
-        description: `Only ${selectedSchedule.available_capacity} spots available for this delivery`,
-        variant: "destructive",
-      });
+    
+    if (quantity > selectedSchedule.available_capacity) {
+      toast.error(`Only ${selectedSchedule.available_capacity} spots available`);
       return;
     }
 
@@ -154,236 +157,255 @@ const Portal = () => {
       <Header />
       
       <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <Button 
-              variant="ghost" 
-              className="mb-4 flex items-center text-gray-600"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Button>
-            
-            <h1 className="text-3xl font-bold text-collegeBites-darkBlue">Food Delivery Portal</h1>
+            <h1 className="text-3xl font-bold text-collegeBites-darkBlue">Order Food Delivery</h1>
             <p className="text-gray-600 mt-1">
-              Find drivers to deliver food packages between college campuses
+              Schedule a food delivery from home to your college student
             </p>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-2 space-y-6">
-              <h2 className="text-xl font-semibold">Available Delivery Routes</h2>
-              
-              {isLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-collegeBites-blue mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading available routes...</p>
-                </div>
-              ) : error ? (
-                <div className="bg-red-50 p-4 rounded-md text-red-500">
-                  Error loading schedules. Please try again.
-                </div>
-              ) : schedules?.length === 0 ? (
-                <div className="bg-yellow-50 p-6 rounded-lg text-center">
-                  <Package className="h-12 w-12 mx-auto text-yellow-500 mb-3" />
-                  <h3 className="text-lg font-medium">No deliveries available</h3>
-                  <p className="text-gray-600 mt-2">
-                    There are no scheduled deliveries at this time. Please check back later.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {schedules?.map((schedule) => (
-                    <Card 
-                      key={schedule.id}
-                      className={`cursor-pointer transition-all ${
-                        selectedSchedule?.id === schedule.id 
-                          ? 'ring-2 ring-collegeBites-blue' 
-                          : 'hover:shadow-md'
-                      }`}
-                      onClick={() => handleScheduleSelect(schedule)}
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center text-lg font-medium mb-1">
-                              <Navigation className="h-5 w-5 mr-2 text-collegeBites-blue" />
-                              {schedule.from_location} to {schedule.to_location}
-                            </div>
-                            
-                            <div className="flex items-center text-gray-600 mb-3">
-                              <Calendar className="h-4 w-4 mr-1" />
-                              <span className="mr-3">
-                                {new Date(schedule.departure_date).toLocaleDateString()}
-                              </span>
-                              
-                              <Clock className="h-4 w-4 mr-1" />
-                              <span>{formatTime(schedule.departure_time)}</span>
-                            </div>
-                            
-                            <div className="text-sm text-gray-600">
-                              <p className="flex items-center">
-                                <Truck className="h-4 w-4 mr-1 text-collegeBites-darkBlue" />
-                                Driver: {schedule.driver.email.split('@')[0]}
-                              </p>
-                              <p className="flex items-center mt-1">
-                                <Package className="h-4 w-4 mr-1 text-collegeBites-darkBlue" />
-                                Available space: {schedule.available_capacity} spots
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="text-right">
-                            <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                              $10 per spot
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div>
+            <div className="md:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Place Your Order</CardTitle>
+                  <CardTitle>Delivery Details</CardTitle>
                   <CardDescription>
-                    Complete the form to schedule a food package delivery
+                    Tell us about the food you want to send
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {!selectedSchedule ? (
-                    <div className="text-center py-8">
-                      <Truck className="h-12 w-12 mx-auto text-gray-400" />
-                      <p className="mt-4 text-gray-600">
-                        Select a delivery route from the list to place your order
-                      </p>
-                    </div>
-                  ) : (
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="bg-gray-50 p-4 rounded-md mb-4">
-                          <h3 className="font-medium">Selected Route</h3>
-                          <p className="text-sm text-gray-600">
-                            {selectedSchedule.from_location} to {selectedSchedule.to_location}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {new Date(selectedSchedule.departure_date).toLocaleDateString()} at {formatTime(selectedSchedule.departure_time)}
-                          </p>
-                        </div>
-                        
-                        <FormField
-                          control={form.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Package Description</FormLabel>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Food Description</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Describe the food you're sending (e.g., Homemade lasagna, cookies, etc.)"
+                                className="resize-none"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Be specific about the types of food being sent.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="special_instructions"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Special Instructions (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Any special handling instructions or notes for the driver"
+                                className="resize-none"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Include any allergies, storage instructions, or delivery notes.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="schedule_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Select Delivery Schedule</FormLabel>
+                            <Select 
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                handleScheduleChange(value);
+                              }}
+                              defaultValue={field.value}
+                            >
                               <FormControl>
-                                <Input {...field} placeholder="Food package" />
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a delivery schedule" />
+                                </SelectTrigger>
                               </FormControl>
-                              <FormDescription>
-                                Describe what you're sending.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="quantity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quantity</FormLabel>
-                              <div className="flex items-center space-x-3">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleQuantityChange(quantity - 1)}
-                                >
-                                  <MinusCircle className="h-4 w-4" />
-                                </Button>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    {...field}
-                                    value={quantity}
-                                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
-                                    min={1}
-                                    max={selectedSchedule.available_capacity > 10 ? 10 : selectedSchedule.available_capacity}
-                                    className="w-16 text-center"
-                                  />
-                                </FormControl>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleQuantityChange(quantity + 1)}
-                                >
-                                  <PlusCircle className="h-4 w-4" />
-                                </Button>
-                                <span className="text-sm text-gray-500">
-                                  (Max: {selectedSchedule.available_capacity > 10 ? 10 : selectedSchedule.available_capacity})
-                                </span>
+                              <SelectContent>
+                                {isLoading ? (
+                                  <SelectItem value="loading" disabled>Loading schedules...</SelectItem>
+                                ) : error ? (
+                                  <SelectItem value="error" disabled>Error loading schedules</SelectItem>
+                                ) : schedules && schedules.length > 0 ? (
+                                  schedules.map((schedule) => (
+                                    <SelectItem key={schedule.id} value={schedule.id}>
+                                      {schedule.from_location} to {schedule.to_location} - {new Date(schedule.departure_date).toLocaleDateString()} at {formatTime(schedule.departure_time)}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="none" disabled>No schedules available</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Choose from available delivery schedules.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {selectedSchedule && (
+                        <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <h3 className="font-medium text-gray-900 mb-2">Selected Delivery Details</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex items-center">
+                              <ArrowRightLeft className="h-5 w-5 text-gray-500 mr-2" />
+                              <div>
+                                <p className="text-sm font-medium">Route</p>
+                                <p className="text-sm text-gray-600">{selectedSchedule.from_location} to {selectedSchedule.to_location}</p>
                               </div>
-                              <FormDescription>
-                                Number of food packages to send.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="special_instructions"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Special Instructions (Optional)</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  placeholder="Any special handling instructions..."
-                                  className="min-h-[80px]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <div className="bg-blue-50 p-4 rounded-md">
-                          <h3 className="font-medium flex items-center">
-                            <Package className="h-4 w-4 mr-2 text-collegeBites-blue" />
-                            Order Summary
-                          </h3>
-                          <div className="mt-2 space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span>Food Package:</span>
-                              <span>${10} x {quantity}</span>
                             </div>
-                            <div className="flex justify-between font-medium border-t border-blue-100 pt-1 mt-1">
-                              <span>Total:</span>
-                              <span>${10 * quantity}</span>
+                            <div className="flex items-center">
+                              <CalendarDays className="h-5 w-5 text-gray-500 mr-2" />
+                              <div>
+                                <p className="text-sm font-medium">Date</p>
+                                <p className="text-sm text-gray-600">{new Date(selectedSchedule.departure_date).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="h-5 w-5 text-gray-500 mr-2" />
+                              <div>
+                                <p className="text-sm font-medium">Departure Time</p>
+                                <p className="text-sm text-gray-600">{formatTime(selectedSchedule.departure_time)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <Car className="h-5 w-5 text-gray-500 mr-2" />
+                              <div>
+                                <p className="text-sm font-medium">Driver</p>
+                                <p className="text-sm text-gray-600">{selectedSchedule.driver_email}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4">
+                            <p className="text-sm font-medium mb-2">Quantity</p>
+                            <div className="flex items-center">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={decreaseQuantity}
+                                disabled={quantity <= 1}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="mx-4 text-lg font-medium">{quantity}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={increaseQuantity}
+                                disabled={!selectedSchedule || quantity >= selectedSchedule.available_capacity}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <span className="ml-4 text-sm text-gray-500">
+                                {selectedSchedule.available_capacity} spots available
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4">
+                            <Separator className="my-4" />
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm text-gray-500">Cost Per Item</p>
+                                <p className="text-lg font-bold">$10.00</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-gray-500">Total Cost</p>
+                                <p className="text-lg font-bold">${(quantity * 10).toFixed(2)}</p>
+                              </div>
                             </div>
                           </div>
                         </div>
-                        
-                        <Button 
-                          type="submit"
-                          className="w-full bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
-                        >
-                          Proceed to Payment
-                        </Button>
-                      </form>
-                    </Form>
-                  )}
+                      )}
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
+                        disabled={isLoading || !selectedSchedule}
+                      >
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Proceed to Checkout
+                      </Button>
+                    </form>
+                  </Form>
                 </CardContent>
+              </Card>
+            </div>
+            
+            <div className="md:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>How It Works</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-collegeBites-blue flex items-center justify-center text-white">
+                        1
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="text-sm font-medium">Select a Route</h3>
+                        <p className="text-sm text-gray-500">Choose from available driver routes and schedules.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-collegeBites-blue flex items-center justify-center text-white">
+                        2
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="text-sm font-medium">Provide Details</h3>
+                        <p className="text-sm text-gray-500">Tell us about the food and any special instructions.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-collegeBites-blue flex items-center justify-center text-white">
+                        3
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="text-sm font-medium">Pay Securely</h3>
+                        <p className="text-sm text-gray-500">Complete your order with our secure payment system.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-collegeBites-blue flex items-center justify-center text-white">
+                        4
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="text-sm font-medium">Track Delivery</h3>
+                        <p className="text-sm text-gray-500">Follow your delivery in real-time until it arrives.</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <p className="text-xs text-gray-500">
+                    Our drivers ensure safe and on-time delivery of your homemade food packages to your loved ones.
+                  </p>
+                </CardFooter>
               </Card>
             </div>
           </div>
@@ -395,12 +417,13 @@ const Portal = () => {
           isOpen={isCheckoutOpen}
           onClose={() => setIsCheckoutOpen(false)}
           schedule={selectedSchedule}
-          quantity={quantity}
           description={form.getValues().description}
           specialInstructions={form.getValues().special_instructions}
+          quantity={quantity}
+          customerId={user.id}
         />
       )}
-      
+
       <Footer />
     </div>
   );

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Car } from "lucide-react";
-import { formatTime } from "../utils/formatTime";
+import { formatTime } from "@/utils/formatTime";
 
 type UpcomingDrivesTabProps = {
   drives: any[];
