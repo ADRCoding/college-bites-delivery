@@ -117,10 +117,10 @@ const About = () => {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {[
-                { name: "Alex Morgan", role: "Founder & CEO" },
-                { name: "Jamie Chen", role: "Operations Director" },
-                { name: "Taylor Williams", role: "Community Manager" },
-                { name: "Jordan Smith", role: "Tech Lead" },
+                { name: "Arush Dinesh Raja", role: "Coder" },
+                { name: "Iniyann Vivekanandan Kalavathy", role: "Coder" },
+                { name: "Soumil Voona", role: "Coder" },
+                { name: "Aarnav Munji", role: "Coder" },
               ].map((member, index) => (
                 <div 
                   key={member.name}
