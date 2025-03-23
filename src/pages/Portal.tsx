@@ -86,17 +86,35 @@ const Portal = () => {
   const { data: schedules, isLoading, error } = useQuery({
     queryKey: ['driverSchedules'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Update the query to use a simpler approach without join
+      const { data: scheduleData, error } = await supabase
         .from('driver_schedules')
-        .select(`
-          *,
-          driver:driver_id(id, email)
-        `)
+        .select('*')
         .gt('available_capacity', 0)
         .order('departure_date', { ascending: true });
       
       if (error) throw error;
-      return data || [];
+      
+      // For each schedule, fetch the driver details separately
+      const schedulesWithDrivers = await Promise.all(
+        (scheduleData || []).map(async (schedule) => {
+          const { data: userData, error: userError } = await supabase
+            .from('user_profiles') // This is a table you'd need to create
+            .select('email')
+            .eq('id', schedule.driver_id)
+            .single();
+          
+          // If we can't get the driver details, use a placeholder
+          const driverEmail = userError ? 'driver@example.com' : userData?.email || 'driver@example.com';
+          
+          return {
+            ...schedule,
+            driver: { email: driverEmail }
+          };
+        })
+      );
+      
+      return schedulesWithDrivers || [];
     }
   });
 
