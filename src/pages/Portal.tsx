@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -45,7 +44,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatTime } from "@/pages/DriverDashboard/utils/formatTime";
 import Checkout from "@/components/Checkout";
 
-// Form schema
 const formSchema = z.object({
   description: z.string().min(2, {
     message: "Description must be at least 2 characters.",
@@ -66,7 +64,6 @@ const Portal = () => {
   const [quantity, setQuantity] = useState(1);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   
-  // Form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -76,17 +73,14 @@ const Portal = () => {
     },
   });
 
-  // Redirect to login if not authenticated
   if (!user) {
     navigate('/login');
     return null;
   }
 
-  // Fetch available schedules
   const { data: schedules, isLoading, error } = useQuery({
     queryKey: ['driverSchedules'],
     queryFn: async () => {
-      // Update the query to use a simpler approach without join
       const { data: scheduleData, error } = await supabase
         .from('driver_schedules')
         .select('*')
@@ -95,16 +89,14 @@ const Portal = () => {
       
       if (error) throw error;
       
-      // For each schedule, fetch the driver details separately
       const schedulesWithDrivers = await Promise.all(
         (scheduleData || []).map(async (schedule) => {
           const { data: userData, error: userError } = await supabase
-            .from('user_profiles') // This is a table you'd need to create
+            .from('user_profiles')
             .select('email')
             .eq('id', schedule.driver_id)
             .single();
           
-          // If we can't get the driver details, use a placeholder
           const driverEmail = userError ? 'driver@example.com' : userData?.email || 'driver@example.com';
           
           return {
@@ -154,7 +146,6 @@ const Portal = () => {
       return;
     }
 
-    // Open checkout dialog
     setIsCheckoutOpen(true);
   };
 
@@ -399,7 +390,6 @@ const Portal = () => {
         </div>
       </main>
       
-      {/* Checkout Dialog */}
       {isCheckoutOpen && selectedSchedule && (
         <Checkout
           isOpen={isCheckoutOpen}

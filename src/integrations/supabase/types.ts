@@ -124,6 +124,27 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          email: string | null
+          id: string
+          name: string | null
+          user_type: string | null
+        }
+        Insert: {
+          email?: string | null
+          id: string
+          name?: string | null
+          user_type?: string | null
+        }
+        Update: {
+          email?: string | null
+          id?: string
+          name?: string | null
+          user_type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
