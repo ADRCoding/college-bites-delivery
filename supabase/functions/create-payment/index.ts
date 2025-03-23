@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import Stripe from 'https://esm.sh/stripe@13.2.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +12,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Initialize Stripe
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') || '';
-const stripe = new Stripe(stripeSecretKey);
-
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -25,10 +20,6 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { scheduleId, quantity, description, specialInstructions, customerId } = await req.json();
-    
-    // Get the current user from the request
-    const authHeader = req.headers.get('Authorization') || '';
-    const token = authHeader.replace('Bearer ', '');
     
     // Get schedule details to calculate total price
     const { data: schedule, error: scheduleError } = await supabase
@@ -46,19 +37,11 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Not enough capacity available. Only ${schedule.available_capacity} spots left.`);
     }
     
-    // Calculate amount (in cents for Stripe)
+    // Calculate amount (in cents)
     const amount = quantity * 1000; // $10 per food box
     
-    // Create a payment intent with Stripe
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      metadata: {
-        customerId,
-        scheduleId,
-        quantity,
-      },
-    });
+    // Generate a payment ID (in a real system, this would be from a payment processor)
+    const paymentId = `payment_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
     // Store the order in pending status
     const { data: order, error: orderError } = await supabase
@@ -69,7 +52,7 @@ const handler = async (req: Request): Promise<Response> => {
         quantity,
         description,
         special_instructions: specialInstructions,
-        payment_id: paymentIntent.id,
+        payment_id: paymentId,
         status: 'pending',
       })
       .select()
@@ -81,8 +64,9 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(
       JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
+        paymentId: paymentId,
         orderId: order.id,
+        amount: amount,
       }),
       {
         status: 200,

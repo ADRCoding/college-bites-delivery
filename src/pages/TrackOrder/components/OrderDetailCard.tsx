@@ -1,9 +1,8 @@
 
-import { Package, Truck } from "lucide-react";
+import { Package, Navigation, Calendar, Clock, CreditCard } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -19,51 +18,80 @@ type OrderDetailCardProps = {
 };
 
 export const OrderDetailCard = ({ order, schedule, deliveryStatus }: OrderDetailCardProps) => {
+  if (!order || !schedule) return null;
+
   return (
     <Card className="mb-6">
       <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle>Order #{order.id.substring(0, 8)}</CardTitle>
-            <CardDescription>
-              Placed on {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString()}
-            </CardDescription>
-          </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium bg-${deliveryStatus.color}-100 text-${deliveryStatus.color}-800`}>
+        <CardTitle className="flex items-center">
+          <Package className="mr-2 h-5 w-5 text-collegeBites-blue" />
+          Order Details
+          <div className={`ml-auto px-3 py-1 text-sm rounded-full bg-${deliveryStatus.color}-100 text-${deliveryStatus.color}-800`}>
             {deliveryStatus.status}
           </div>
-        </div>
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6">
-          <div className="flex items-start space-x-4">
-            <Package className="h-5 w-5 text-gray-500 mt-0.5" />
-            <div>
-              <h3 className="font-medium">Package Details</h3>
-              <p className="text-gray-600">{order.description || "Food Package"}</p>
-              <p className="text-gray-600">Quantity: {order.quantity} box(es)</p>
-              {order.special_instructions && (
-                <p className="text-gray-600 mt-1">
-                  <span className="font-medium">Special Instructions:</span> {order.special_instructions}
-                </p>
-              )}
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:justify-between gap-2 md:gap-4">
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-500">Order ID</h3>
+              <p className="mt-1 font-mono text-sm">{order.id.substring(0, 8)}</p>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-500">Payment ID</h3>
+              <p className="mt-1 font-mono text-sm">{order.payment_id.substring(0, 12)}...</p>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-500">Quantity</h3>
+              <p className="mt-1">{order.quantity} {order.quantity > 1 ? 'packages' : 'package'}</p>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-gray-500">Total Amount</h3>
+              <p className="mt-1">${order.quantity * 10}.00</p>
             </div>
           </div>
-          
-          {schedule && (
-            <div className="flex items-start space-x-4">
-              <Truck className="h-5 w-5 text-gray-500 mt-0.5" />
-              <div>
-                <h3 className="font-medium">Delivery Details</h3>
-                <p className="text-gray-600">
-                  From <span className="font-medium">{schedule.from_location}</span> to <span className="font-medium">{schedule.to_location}</span>
-                </p>
-                <p className="text-gray-600">
-                  Scheduled for {new Date(schedule.departure_date).toLocaleDateString()} at {formatTime(schedule.departure_time)}
-                </p>
-              </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500 flex items-center">
+              <Navigation className="mr-2 h-4 w-4 text-collegeBites-blue" />
+              Delivery Route
+            </h3>
+            <p className="mt-1 text-base font-medium">
+              {schedule.from_location} to {schedule.to_location}
+            </p>
+            <div className="mt-2 flex items-center text-sm text-gray-500">
+              <Calendar className="mr-1 h-4 w-4" />
+              <span className="mr-3">{new Date(schedule.departure_date).toLocaleDateString()}</span>
+              <Clock className="mr-1 h-4 w-4" />
+              <span>{formatTime(schedule.departure_time)}</span>
             </div>
-          )}
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500 flex items-center">
+              <Package className="mr-2 h-4 w-4 text-collegeBites-blue" />
+              Package Details
+            </h3>
+            <p className="mt-1">{order.description || "Food Package"}</p>
+            {order.special_instructions && (
+              <div className="mt-2">
+                <h4 className="text-sm font-medium text-gray-500">Special Instructions</h4>
+                <p className="mt-1 text-sm bg-gray-50 p-2 rounded">{order.special_instructions}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500 flex items-center">
+              <CreditCard className="mr-2 h-4 w-4 text-collegeBites-blue" />
+              Payment Status
+            </h3>
+            <div className="mt-1 flex items-center">
+              <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
+              <p>Paid</p>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

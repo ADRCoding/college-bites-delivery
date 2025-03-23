@@ -1,7 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import Stripe from 'https://esm.sh/stripe@13.2.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +12,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Initialize Stripe
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') || '';
-const stripe = new Stripe(stripeSecretKey);
-
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -24,20 +19,13 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { paymentIntentId } = await req.json();
-    
-    // Verify payment intent was successful
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-    
-    if (paymentIntent.status !== 'succeeded') {
-      throw new Error(`Payment not successful. Status: ${paymentIntent.status}`);
-    }
+    const { paymentId } = await req.json();
     
     // Get the order details
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
-      .eq('payment_id', paymentIntentId)
+      .eq('payment_id', paymentId)
       .single();
     
     if (orderError || !order) {
