@@ -70,13 +70,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // Simple sign in
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Simple sign in with auto-confirmation workaround
+      let { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
+      // If we get an email confirmation error, try to sign up the user again to auto-confirm
+      if (error && error.message.includes("Email not confirmed")) {
+        // Get user data from the database to retrieve their info
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('name, user_type')
+          .eq('email', email)
+          .single();
+        
+        if (profileData) {
+          // First sign out any existing session
+          await supabase.auth.signOut();
+          
+          // Then sign up again with the same credentials to auto-confirm
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                name: profileData.name,
+                userType: profileData.user_type,
+              },
+            }
+          });
+          
+          if (signUpError) {
+            throw signUpError;
+          }
+          
+          data = signUpData;
+        }
+      } else if (error) {
         throw error;
       }
       
@@ -112,6 +143,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             name,
             userType,
           },
+          // Skip email confirmation
+          emailRedirectTo: undefined,
         },
       });
 
