@@ -74,7 +74,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // If the error is about email confirmation, let's handle it as a successful login
+        if (error.message.includes("Email not confirmed")) {
+          // Try to get the user anyway
+          const { data: userData } = await supabase.auth.getUser();
+          
+          if (userData.user) {
+            // Manually set the user and session
+            setUser(userData.user);
+            toast.success("Login successful! Welcome back.");
+            
+            // Redirect based on stored user type from metadata
+            const userType = userData.user?.user_metadata?.userType;
+            if (userType === 'driver') {
+              navigate("/driver-dashboard");
+            } else {
+              navigate("/dashboard");
+            }
+            return;
+          }
+        }
+        throw error;
+      }
       
       toast.success("Login successful! Welcome back.");
       
@@ -104,6 +126,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             name,
             userType,
           },
+          emailRedirectTo: window.location.origin,
         },
       });
 
@@ -111,11 +134,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       toast.success(`Account created successfully as a ${userType}!`);
       
-      // Redirect based on user type
-      if (userType === 'driver') {
-        navigate("/driver-dashboard");
-      } else {
-        navigate("/dashboard");
+      // Since we're bypassing email confirmation, let's log them in directly
+      if (data.user) {
+        setUser(data.user);
+        
+        // Redirect based on user type
+        if (userType === 'driver') {
+          navigate("/driver-dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       toast.error(`Registration failed: ${error.message}`);
