@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -211,7 +210,7 @@ const Portal = () => {
                 <h2 className="text-xl font-semibold text-gray-900">Available Delivery Routes</h2>
                 <Button 
                   variant="outline" 
-                  onClick={fetchDriverSchedules}
+                  onClick={() => fetchDriverSchedules()}
                   className="flex gap-2 items-center"
                 >
                   <RefreshCw size={16} />
