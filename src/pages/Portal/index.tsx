@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Car, Package, Calendar, Info, Clock, MapPin } from "lucide-react";
+import { Car, Package, Calendar, Info, Clock, MapPin, RefreshCw, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,21 +43,18 @@ const Portal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [driverDetails, setDriverDetails] = useState({});
   
-  // Redirect if not logged in
   useEffect(() => {
     if (!user) {
       navigate('/login');
     }
   }, [user, navigate]);
 
-  // If user is a driver, redirect to schedule page
   useEffect(() => {
     if (userType === 'driver') {
       navigate('/schedule-drive');
     }
   }, [userType, navigate]);
 
-  // Fetch driver schedules
   useEffect(() => {
     fetchDriverSchedules();
   }, []);
@@ -67,7 +63,6 @@ const Portal = () => {
     try {
       setLoading(true);
       
-      // Get all driver schedules
       const { data: schedules, error } = await supabase
         .from('driver_schedules')
         .select('*, user_profiles(name, email)')
@@ -78,7 +73,6 @@ const Portal = () => {
       
       setDriverSchedules(schedules || []);
       
-      // Fetch driver profile details
       const driverIds = [...new Set(schedules.map(schedule => schedule.driver_id))];
       
       const { data: profileData, error: profileError } = await supabase
@@ -88,7 +82,6 @@ const Portal = () => {
         
       if (profileError) throw profileError;
       
-      // Create a map of driver IDs to their profile details
       const driverMap = {};
       profileData?.forEach(profile => {
         driverMap[profile.id] = profile;
@@ -111,13 +104,11 @@ const Portal = () => {
   const handlePlaceOrder = async () => {
     if (!user || !selectedSchedule) return;
     
-    // Validate order quantity is not greater than available capacity
     if (quantity > selectedSchedule.available_capacity) {
       toast.error(`Sorry, only ${selectedSchedule.available_capacity} slots available`);
       return;
     }
     
-    // Validate quantity is at least 1
     if (quantity < 1) {
       toast.error("Please order at least 1 meal");
       return;
@@ -126,7 +117,6 @@ const Portal = () => {
     setIsProcessing(true);
     
     try {
-      // Create order in Supabase
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -142,7 +132,6 @@ const Portal = () => {
       
       if (orderError) throw orderError;
       
-      // Update the available capacity using the decrease_capacity function
       const { error: updateError } = await supabase.rpc(
         'decrease_capacity',
         { 
@@ -155,17 +144,14 @@ const Portal = () => {
       
       toast.success("Order placed successfully!");
       
-      // Close dialog and refresh data
       setOrderDialogOpen(false);
       setSelectedSchedule(null);
       setQuantity(1);
       setDescription("");
       setSpecialInstructions("");
       
-      // Refresh the schedules
       fetchDriverSchedules();
       
-      // Navigate to dashboard
       navigate('/dashboard');
     } catch (error) {
       console.error("Error placing order:", error);
@@ -175,13 +161,11 @@ const Portal = () => {
     }
   };
 
-  // Format date from database format
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString();
   };
   
-  // Get driver name from the driver ID
   const getDriverName = (driverId) => {
     return driverDetails[driverId]?.name || "Driver";
   };
@@ -402,49 +386,6 @@ const Portal = () => {
       
       <Footer />
     </div>
-  );
-};
-
-// RefreshCw icon component since it's not imported at the top
-const RefreshCw = (props) => {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-      <path d="M3 21v-5h5" />
-    </svg>
-  );
-};
-
-const User = (props) => {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
   );
 };
 

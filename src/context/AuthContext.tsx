@@ -70,27 +70,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // First try to get the user directly - this will work even if the email isn't confirmed
-      const { data: userData, error: getUserError } = await supabase.auth.signInWithPassword({
+      // First try to sign in directly - this will work even if the email isn't confirmed
+      const { data: userData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (getUserError) {
-        // If the error is about email not confirmed, we'll handle that specially
-        if (getUserError.message.includes("Email not confirmed")) {
-          // Use admin API to get the user
-          const { data, error } = await supabase.auth.admin.getUserByEmail(email);
+      if (signInError) {
+        // If there's an error about email not confirmed, we'll handle that specially
+        if (signInError.message.includes("Email not confirmed")) {
+          // Try to find user by email using auth.admin.listUsers() instead of getUserByEmail
+          const { data: usersData, error: listError } = await supabase.auth.admin.listUsers();
           
-          if (error) throw error;
+          if (listError) throw listError;
           
-          if (data.user) {
+          const foundUser = usersData?.users.find(u => u.email === email);
+          
+          if (foundUser) {
             // Set the user directly
-            setUser(data.user);
+            setUser(foundUser);
             toast.success("Login successful! Welcome back.");
             
             // Redirect based on stored user type
-            const userType = data.user.user_metadata?.userType;
+            const userType = foundUser.user_metadata?.userType;
             if (userType === 'driver') {
               navigate("/driver-dashboard");
             } else {
@@ -100,7 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         } else {
           // For any other error, throw it
-          throw getUserError;
+          throw signInError;
         }
       } else if (userData.user) {
         // Normal successful login
