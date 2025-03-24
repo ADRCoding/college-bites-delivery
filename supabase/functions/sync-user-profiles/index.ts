@@ -22,44 +22,16 @@ const handler = async (req: Request): Promise<Response> => {
     const body = await req.json();
     const { action, email, password } = body;
 
-    if (action === 'login_with_email') {
-      // First try to get user by email
-      const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
-      
-      if (usersError) {
-        throw new Error(`Admin API error: ${usersError.message}`);
-      }
-      
-      // Find user with matching email
-      const user = usersData.users.find(u => u.email === email);
-      
-      if (!user) {
-        return new Response(
-          JSON.stringify({ error: 'User not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        );
-      }
-      
-      // Return user data
-      return new Response(
-        JSON.stringify({ 
-          user,
-          message: 'User found successfully' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
     // Sync all user profiles
     if (action === 'sync_profiles') {
-      const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+      const { data: users, error } = await supabase.auth.admin.listUsers();
       
-      if (usersError) {
-        throw new Error(`Admin API error: ${usersError.message}`);
+      if (error) {
+        throw new Error(`Admin API error: ${error.message}`);
       }
       
       // For each user, ensure a profile exists
-      for (const user of usersData.users) {
+      for (const user of users.users) {
         // Check if profile already exists
         const { data: existingProfile } = await supabase
           .from('user_profiles')
@@ -81,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ 
           message: 'User profiles synced successfully',
-          count: usersData.users.length
+          count: users.users.length
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

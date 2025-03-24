@@ -24,7 +24,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
-  userType: z.enum(["parent", "parent_driver", "student", "driver"], { 
+  userType: z.enum(["parent", "student", "driver"], { 
     required_error: "Please select your account type" 
   }),
 });
@@ -138,14 +138,6 @@ const Register = () => {
                             </FormControl>
                             <FormLabel className="font-normal cursor-pointer">
                               Parent - Send homemade food with other visiting parents
-                            </FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="parent_driver" />
-                            </FormControl>
-                            <FormLabel className="font-normal cursor-pointer">
-                              Parent Driver - Visiting campus and can deliver food
                             </FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-3 space-y-0">
