@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DriverDashboard from "./pages/DriverDashboard";
+import ScheduleDrive from "./pages/ScheduleDrive";
 import Portal from "./pages/Portal";
 import TrackOrder from "./pages/TrackOrder";
 import { AuthProvider } from "./context/AuthContext";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/driver-dashboard" element={<DriverDashboard />} />
+            <Route path="/schedule-drive" element={<ScheduleDrive />} />
             <Route path="/portal" element={<Portal />} />
             <Route path="/track/:orderId" element={<TrackOrder />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

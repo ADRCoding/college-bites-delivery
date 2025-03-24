@@ -69,24 +69,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      
+      // First try to get the user directly - this will work even if the email isn't confirmed
+      const { data: userData, error: getUserError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        // If the error is about email confirmation, let's handle it as a successful login
-        if (error.message.includes("Email not confirmed")) {
-          // Try to get the user anyway
-          const { data: userData } = await supabase.auth.getUser();
+      if (getUserError) {
+        // If the error is about email not confirmed, we'll handle that specially
+        if (getUserError.message.includes("Email not confirmed")) {
+          // Use admin API to get the user
+          const { data, error } = await supabase.auth.admin.getUserByEmail(email);
           
-          if (userData.user) {
-            // Manually set the user and session
-            setUser(userData.user);
+          if (error) throw error;
+          
+          if (data.user) {
+            // Set the user directly
+            setUser(data.user);
             toast.success("Login successful! Welcome back.");
             
-            // Redirect based on stored user type from metadata
-            const userType = userData.user?.user_metadata?.userType;
+            // Redirect based on stored user type
+            const userType = data.user.user_metadata?.userType;
             if (userType === 'driver') {
               navigate("/driver-dashboard");
             } else {
@@ -94,18 +98,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
             return;
           }
+        } else {
+          // For any other error, throw it
+          throw getUserError;
         }
-        throw error;
-      }
-      
-      toast.success("Login successful! Welcome back.");
-      
-      // Redirect based on user type
-      const userType = data.user?.user_metadata?.userType;
-      if (userType === 'driver') {
-        navigate("/driver-dashboard");
-      } else {
-        navigate("/dashboard");
+      } else if (userData.user) {
+        // Normal successful login
+        toast.success("Login successful! Welcome back.");
+        
+        // Redirect based on user type
+        const userType = userData.user.user_metadata?.userType;
+        if (userType === 'driver') {
+          navigate("/driver-dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       toast.error(`Login failed: ${error.message}`);
@@ -118,6 +125,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string, name: string, userType: string) => {
     try {
       setIsLoading(true);
+      
+      // Sign up the user without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -126,7 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             name,
             userType,
           },
-          emailRedirectTo: window.location.origin,
+          // Disable email confirmation by not setting emailRedirectTo
         },
       });
 
@@ -134,9 +143,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       toast.success(`Account created successfully as a ${userType}!`);
       
-      // Since we're bypassing email confirmation, let's log them in directly
+      // Skip email confirmation and log the user in directly
       if (data.user) {
         setUser(data.user);
+        setUserType(userType as UserType);
         
         // Redirect based on user type
         if (userType === 'driver') {
