@@ -84,10 +84,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           if (listError) throw listError;
           
-          // We need to explicitly type the users array and check for email property
-          const foundUser = usersData?.users?.find(u => {
-            return u.email === email;
-          });
+          // We need to explicitly type the users array
+          interface AdminUser extends User {
+            email?: string;
+          }
+          
+          // Safe check for users and find one with matching email
+          const users = usersData?.users as AdminUser[] || [];
+          const foundUser = users.find(u => u.email === email);
           
           if (foundUser) {
             // Set the user directly
