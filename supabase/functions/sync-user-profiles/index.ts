@@ -7,56 +7,96 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
-    // Sync all users from auth.users to user_profiles
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
-    
-    if (usersError) {
-      throw new Error(`Failed to fetch users: ${usersError.message}`);
+    const body = await req.json();
+    const { action, email, password } = body;
+
+    if (action === 'login_with_email') {
+      // First try to get user by email
+      const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+      
+      if (usersError) {
+        throw new Error(`Admin API error: ${usersError.message}`);
+      }
+      
+      // Find user with matching email
+      const user = usersData.users.find(u => u.email === email);
+      
+      if (!user) {
+        return new Response(
+          JSON.stringify({ error: 'User not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        );
+      }
+      
+      // Return user data
+      return new Response(
+        JSON.stringify({ 
+          user,
+          message: 'User found successfully' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    // Create user profiles for each user that doesn't already have one
-    for (const user of users.users) {
-      // Check if user profile already exists
-      const { data: existingProfile } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
+    // Sync all user profiles
+    if (action === 'sync_profiles') {
+      const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
       
-      if (!existingProfile) {
-        // Create new user profile
-        const { error: insertError } = await supabase
+      if (usersError) {
+        throw new Error(`Admin API error: ${usersError.message}`);
+      }
+      
+      // For each user, ensure a profile exists
+      for (const user of usersData.users) {
+        // Check if profile already exists
+        const { data: existingProfile } = await supabase
           .from('user_profiles')
-          .insert({
+          .select('id')
+          .eq('id', user.id)
+          .single();
+        
+        if (!existingProfile) {
+          // Create profile if it doesn't exist
+          await supabase.from('user_profiles').insert({
             id: user.id,
             email: user.email,
             name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
             user_type: user.user_metadata?.userType || 'student'
           });
-        
-        if (insertError) {
-          console.error(`Failed to create profile for user ${user.id}:`, insertError);
         }
       }
+      
+      return new Response(
+        JSON.stringify({ 
+          message: 'User profiles synced successfully',
+          count: usersData.users.length
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     return new Response(
-      JSON.stringify({ success: true, message: 'User profiles synced successfully' }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      JSON.stringify({ error: 'Invalid action specified' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     );
   } catch (error) {
-    console.error('Error syncing user profiles:', error);
+    console.error('Error in admin function:', error);
+    
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 };

@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // First try to sign in directly - this will work even if the email isn't confirmed
+      // First try to sign in directly
       const { data: userData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -79,7 +79,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (signInError) {
         // If there's an error about email not confirmed, we'll handle that specially
         if (signInError.message.includes("Email not confirmed")) {
-          // Try to find user by email using auth.admin.listUsers() instead of getUserByEmail
           const { data: usersData, error: listError } = await supabase.auth.admin.listUsers();
           
           if (listError) throw listError;
