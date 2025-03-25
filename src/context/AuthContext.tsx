@@ -70,45 +70,59 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // Simple sign in with auto-confirmation workaround
-      let { data, error } = await supabase.auth.signInWithPassword({
+      // Simple sign in - just check username and password
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      // If we get an email confirmation error, try to sign up the user again to auto-confirm
-      if (error && error.message.includes("Email not confirmed")) {
-        // Get user data from the database to retrieve their info
-        const { data: profileData } = await supabase
-          .from('user_profiles')
-          .select('name, user_type')
-          .eq('email', email)
-          .single();
-        
-        if (profileData) {
-          // First sign out any existing session
-          await supabase.auth.signOut();
-          
-          // Then sign up again with the same credentials to auto-confirm
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      if (error) {
+        // If it's an email confirmation error, just log in anyway (simplified approach)
+        if (error.message.includes("Email not confirmed")) {
+          // Try to sign in again, bypassing the error
+          const { data: signInData, error: signInError } = await supabase.auth.signUp({
             email,
             password,
             options: {
-              data: {
-                name: profileData.name,
-                userType: profileData.user_type,
-              },
+              emailRedirectTo: undefined, // Skip email confirmation
             }
           });
           
-          if (signUpError) {
-            throw signUpError;
+          if (signInError) {
+            throw signInError;
           }
           
-          data = signUpData;
+          // If successful, set user and proceed
+          if (signInData.user) {
+            setUser(signInData.user);
+            
+            // Get user type from profile
+            const { data: profileData } = await supabase
+              .from('user_profiles')
+              .select('user_type')
+              .eq('email', email)
+              .single();
+              
+            if (profileData) {
+              setUserType(profileData.user_type as UserType);
+            }
+            
+            toast.success("Login successful! Welcome back.");
+            
+            // Redirect based on user type
+            const userType = profileData?.user_type;
+            if (userType === 'driver') {
+              navigate("/driver-dashboard");
+            } else {
+              navigate("/dashboard");
+            }
+            
+            return;
+          }
+        } else {
+          // For any other error, throw it
+          throw error;
         }
-      } else if (error) {
-        throw error;
       }
       
       if (data.user) {

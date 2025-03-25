@@ -1,390 +1,351 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { Car, Package, Calendar, Info, Clock, MapPin, RefreshCw, User } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { format, parseISO } from "date-fns";
+import { Calendar, Clock, MapPin, Package, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { formatTime } from "@/utils/formatTime";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const Portal = () => {
-  const navigate = useNavigate();
   const { user, userType } = useAuth();
+  const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
   const [driverSchedules, setDriverSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSchedule, setSelectedSchedule] = useState(null);
-  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-  const [description, setDescription] = useState("");
-  const [specialInstructions, setSpecialInstructions] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [driverDetails, setDriverDetails] = useState({});
-  
+
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate("/login");
+      return;
     }
-  }, [user, navigate]);
 
-  useEffect(() => {
-    if (userType === 'driver') {
-      navigate('/schedule-drive');
+    if (userType === "parent") {
+      fetchParentOrders();
+    } else if (userType === "student") {
+      fetchStudentOrders();
+    } else if (userType === "driver") {
+      fetchDriverSchedules();
     }
-  }, [userType, navigate]);
+  }, [user, userType, navigate]);
 
-  useEffect(() => {
-    fetchDriverSchedules();
-  }, []);
-
-  const fetchDriverSchedules = async () => {
+  const fetchParentOrders = async () => {
     try {
       setLoading(true);
-      
-      const { data: schedules, error } = await supabase
-        .from('driver_schedules')
-        .select('*, user_profiles(name, email)')
-        .gt('available_capacity', 0)
-        .order('departure_date', { ascending: true });
-      
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, student_profiles(*)")
+        .eq("parent_id", user.id)
+        .order("created_at", { ascending: false });
+
       if (error) throw error;
-      
-      setDriverSchedules(schedules || []);
-      
-      const driverIds = [...new Set(schedules.map(schedule => schedule.driver_id))];
-      
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id, name, email')
-        .in('id', driverIds);
-        
-      if (profileError) throw profileError;
-      
-      const driverMap = {};
-      profileData?.forEach(profile => {
-        driverMap[profile.id] = profile;
-      });
-      
-      setDriverDetails(driverMap);
+      setOrders(data || []);
     } catch (error) {
-      console.error("Error fetching driver schedules:", error);
-      toast.error("Failed to load driver schedules");
+      toast.error("Failed to fetch orders: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOrderClick = (schedule) => {
-    setSelectedSchedule(schedule);
-    setOrderDialogOpen(true);
+  const fetchStudentOrders = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, parent_profiles(*)")
+        .eq("student_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      toast.error("Failed to fetch orders: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePlaceOrder = async () => {
-    if (!user || !selectedSchedule) return;
-    
-    if (quantity > selectedSchedule.available_capacity) {
-      toast.error(`Sorry, only ${selectedSchedule.available_capacity} slots available`);
-      return;
-    }
-    
-    if (quantity < 1) {
-      toast.error("Please order at least 1 meal");
-      return;
-    }
-    
-    setIsProcessing(true);
-    
+  const fetchDriverSchedules = async () => {
     try {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          customer_id: user.id,
-          schedule_id: selectedSchedule.id,
-          quantity: quantity,
-          description: description,
-          special_instructions: specialInstructions,
-          status: 'pending'
-        })
-        .select()
-        .single();
-      
-      if (orderError) throw orderError;
-      
-      const { error: updateError } = await supabase.rpc(
-        'decrease_capacity',
-        { 
-          schedule_id: selectedSchedule.id,
-          quantity_requested: quantity
-        }
-      );
-      
-      if (updateError) throw updateError;
-      
-      toast.success("Order placed successfully!");
-      
-      setOrderDialogOpen(false);
-      setSelectedSchedule(null);
-      setQuantity(1);
-      setDescription("");
-      setSpecialInstructions("");
-      
-      fetchDriverSchedules();
-      
-      navigate('/dashboard');
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("driver_schedules")
+        .select("*, orders(*)")
+        .eq("driver_id", user.id)
+        .order("scheduled_date", { ascending: false });
+
+      if (error) throw error;
+      setDriverSchedules(data || []);
     } catch (error) {
-      console.error("Error placing order:", error);
-      toast.error(`Failed to place order: ${error.message}`);
+      toast.error("Failed to fetch schedules: " + error.message);
     } finally {
-      setIsProcessing(false);
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "in_transit":
+        return "bg-blue-100 text-blue-800";
+      case "delivered":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    try {
+      return format(parseISO(dateString), "MMM d, yyyy");
+    } catch (error) {
+      return "Invalid date";
+    }
   };
-  
-  const getDriverName = (driverId) => {
-    return driverDetails[driverId]?.name || "Driver";
-  };
+
+  const renderParentOrStudentContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Your Orders</h2>
+        {userType === "parent" && (
+          <Button
+            onClick={() => navigate("/schedule-drive")}
+            className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
+          >
+            Schedule New Delivery
+          </Button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-collegeBites-blue mx-auto"></div>
+          <p className="mt-3 text-gray-600">Loading your orders...</p>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-10 bg-gray-50 rounded-lg">
+          <Package className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">No orders found</h3>
+          <p className="mt-1 text-gray-500">
+            {userType === "parent"
+              ? "You haven't scheduled any deliveries yet."
+              : "You don't have any incoming deliveries."}
+          </p>
+          {userType === "parent" && (
+            <Button
+              onClick={() => navigate("/schedule-drive")}
+              className="mt-4 bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
+            >
+              Schedule Your First Delivery
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div
+              key={order.id}
+              className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Order #{order.id.substring(0, 8)}
+                  </h3>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center text-gray-600">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span>
+                        Scheduled for {formatDate(order.scheduled_date)}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span>
+                        {order.time_slot || "Time slot not specified"}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span>
+                        {order.delivery_location || "Location not specified"}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <User className="h-4 w-4 mr-2" />
+                      <span>
+                        {userType === "parent"
+                          ? `To: ${order.student_profiles?.name || "Student"}`
+                          : `From: ${order.parent_profiles?.name || "Parent"}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(
+                      order.status
+                    )}`}
+                  >
+                    {order.status === "pending"
+                      ? "Pending"
+                      : order.status === "in_transit"
+                      ? "In Transit"
+                      : order.status === "delivered"
+                      ? "Delivered"
+                      : order.status === "cancelled"
+                      ? "Cancelled"
+                      : "Unknown"}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <div className="flex justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/track/${order.id}`)}
+                    className="text-collegeBites-blue hover:text-collegeBites-darkBlue border-collegeBites-blue hover:border-collegeBites-darkBlue"
+                  >
+                    Track Order
+                  </Button>
+                  {order.status === "pending" && userType === "parent" && (
+                    <Button
+                      variant="outline"
+                      className="text-red-600 hover:text-red-700 border-red-600 hover:border-red-700"
+                    >
+                      Cancel Order
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderDriverContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Your Delivery Schedule</h2>
+        <Button
+          onClick={() => fetchDriverSchedules()}
+          className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
+        >
+          Refresh Schedule
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-collegeBites-blue mx-auto"></div>
+          <p className="mt-3 text-gray-600">Loading your schedule...</p>
+        </div>
+      ) : driverSchedules.length === 0 ? (
+        <div className="text-center py-10 bg-gray-50 rounded-lg">
+          <Calendar className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">No scheduled deliveries</h3>
+          <p className="mt-1 text-gray-500">
+            You don't have any deliveries scheduled at the moment.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {driverSchedules.map((schedule) => (
+            <div
+              key={schedule.id}
+              className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Schedule #{schedule.id.substring(0, 8)}
+                  </h3>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center text-gray-600">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span>
+                        Date: {formatDate(schedule.scheduled_date)}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span>
+                        Time: {schedule.time_slot || "Not specified"}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span>
+                        Route: {schedule.route || "Not specified"}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-gray-600">
+                      <Package className="h-4 w-4 mr-2" />
+                      <span>
+                        Orders: {schedule.orders?.length || 0} assigned
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      schedule.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : schedule.status === "in_progress"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {schedule.status === "completed"
+                      ? "Completed"
+                      : schedule.status === "in_progress"
+                      ? "In Progress"
+                      : "Scheduled"}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/driver-route/${schedule.id}`)}
+                  className="text-collegeBites-blue hover:text-collegeBites-darkBlue border-collegeBites-blue hover:border-collegeBites-darkBlue"
+                >
+                  View Route Details
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      
-      <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-collegeBites-darkBlue">
-              {userType === 'driver' ? 'Schedule a Drive' : 'Find Available Deliveries'}
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {userType === 'driver' 
-                ? 'Schedule a new delivery route to help students get homemade food' 
-                : 'Browse available drivers and schedule a delivery for homemade food'}
-            </p>
-          </div>
+      <main className="flex-grow container mx-auto px-4 py-8 max-w-5xl">
+        <div className="bg-white shadow-sm rounded-xl p-6 md:p-8">
+          <h1 className="text-3xl font-bold text-collegeBites-darkBlue mb-6">
+            {userType === "parent"
+              ? "Parent Portal"
+              : userType === "student"
+              ? "Student Portal"
+              : "Driver Portal"}
+          </h1>
 
-          {userType === 'driver' ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Schedule a Delivery Route</CardTitle>
-                <CardDescription>Set up your delivery schedule to help students get homemade meals</CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center py-6">
-                <Button 
-                  size="lg" 
-                  className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue flex gap-2 items-center"
-                  onClick={() => navigate('/schedule-drive')}
-                >
-                  <Car size={20} />
-                  Schedule a New Drive
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Available Delivery Routes</h2>
-                <Button 
-                  variant="outline" 
-                  onClick={() => fetchDriverSchedules()}
-                  className="flex gap-2 items-center"
-                >
-                  <RefreshCw size={16} />
-                  Refresh
-                </Button>
-              </div>
-              
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-collegeBites-blue mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading available drivers...</p>
-                </div>
-              ) : driverSchedules.length > 0 ? (
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {driverSchedules.map((schedule) => (
-                    <Card key={schedule.id} className="overflow-hidden">
-                      <CardHeader className="bg-gray-50 px-6 py-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{schedule.from_location} to {schedule.to_location}</CardTitle>
-                            <CardDescription className="mt-1">
-                              <div className="flex items-center text-sm">
-                                <Calendar className="h-4 w-4 mr-1" />
-                                {formatDate(schedule.departure_date)}
-                                <Clock className="h-4 w-4 ml-3 mr-1" />
-                                {formatTime(schedule.departure_time)}
-                              </div>
-                            </CardDescription>
-                          </div>
-                          <Badge variant="outline" className="bg-collegeBites-blue/10 text-collegeBites-blue border-collegeBites-blue">
-                            {schedule.available_capacity} slots left
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="space-y-3">
-                          <div className="flex items-start">
-                            <MapPin className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                            <div>
-                              <p className="font-medium">Route</p>
-                              <p className="text-sm text-gray-600">{schedule.from_location} → {schedule.to_location}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start">
-                            <User className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                            <div>
-                              <p className="font-medium">Driver</p>
-                              <p className="text-sm text-gray-600">{getDriverName(schedule.driver_id)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start">
-                            <Package className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
-                            <div>
-                              <p className="font-medium">Capacity</p>
-                              <p className="text-sm text-gray-600">{schedule.available_capacity} of {schedule.capacity} slots available</p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="px-6 py-4 bg-gray-50 flex justify-between">
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toast.info(`Driving from ${schedule.from_location} to ${schedule.to_location} on ${formatDate(schedule.departure_date)} at ${formatTime(schedule.departure_time)}`)}
-                          className="flex gap-1 items-center"
-                        >
-                          <Info size={16} />
-                          Details
-                        </Button>
-                        <Button 
-                          size="sm"
-                          className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue flex gap-1 items-center"
-                          onClick={() => handleOrderClick(schedule)}
-                        >
-                          <Package size={16} />
-                          Order Delivery
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-white rounded-lg shadow">
-                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100">
-                    <Car className="h-8 w-8 text-gray-500" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-medium text-gray-900">No drivers available</h3>
-                  <p className="mt-2 text-gray-500">
-                    There are no scheduled deliveries available at the moment.
-                    <br />
-                    Please check back later.
-                  </p>
-                </div>
-              )}
-              
-              <Dialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Place a Delivery Order</DialogTitle>
-                    <DialogDescription>
-                      {selectedSchedule && (
-                        <>Route: {selectedSchedule.from_location} to {selectedSchedule.to_location}</>
-                      )}
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="space-y-4 py-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="quantity">Number of Meals</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        max={selectedSchedule?.available_capacity || 1}
-                        value={quantity}
-                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                      />
-                      {selectedSchedule && (
-                        <p className="text-sm text-gray-500">
-                          Maximum available: {selectedSchedule.available_capacity}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Food Description</Label>
-                      <Input
-                        id="description"
-                        placeholder="Homemade lasagna, cookies, etc."
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="special-instructions">Special Instructions</Label>
-                      <Textarea
-                        id="special-instructions"
-                        placeholder="Any notes for the driver..."
-                        value={specialInstructions}
-                        onChange={(e) => setSpecialInstructions(e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                  
-                  <DialogFooter className="sm:justify-between">
-                    <Button
-                      variant="outline"
-                      onClick={() => setOrderDialogOpen(false)}
-                      disabled={isProcessing}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handlePlaceOrder}
-                      disabled={isProcessing}
-                      className="bg-collegeBites-blue hover:bg-collegeBites-darkBlue"
-                    >
-                      {isProcessing ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        "Place Order"
-                      )}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
+          {userType === "driver"
+            ? renderDriverContent()
+            : renderParentOrStudentContent()}
         </div>
       </main>
-      
       <Footer />
     </div>
   );
